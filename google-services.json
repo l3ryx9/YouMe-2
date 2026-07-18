@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "195391921792",
+    "project_id": "youme24",
+    "storage_bucket": "youme24.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:195391921792:android:f478b5b65bd4d0fcb81065",
+        "android_client_info": {
+          "package_name": "com.youme24.appname"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "195391921792-ks8dmvstio68qndappql3fuvg3d2mgas.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-2dOXuuiIiZrAzw2NVZFzQVOI8cUiWe0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "195391921792-ks8dmvstio68qndappql3fuvg3d2mgas.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
