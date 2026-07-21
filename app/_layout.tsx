@@ -185,4 +185,104 @@ export default function RootLayout() {
     try {
       const messaging = require('@react-native-firebase/messaging').default;
       fcmUnsubscribe = messaging().onMessage(async (remoteMessage: any) => {
-        const dat
+        const data = remoteMessage?.data ?? {};
+
+        // Message au premier plan : Firebase n'affiche pas de notif système
+        // automatiquement dans ce cas, donc on la déclenche nous-mêmes via
+        // Expo Notifications pour rester cohérent avec le reste de l'app.
+        const title = remoteMessage?.notification?.title ?? (data.title as string | undefined);
+        const body = remoteMessage?.notification?.body ?? (data.body as string | undefined);
+
+        if (title || body) {
+          try {
+            await notificationService.scheduleLocalNotification(
+              title ?? 'YouMe',
+              body ?? '',
+              data as Record<string, string>
+            );
+          } catch (err) {
+            logError('RootLayout.fcmOnMessage.notify', err);
+          }
+        }
+      });
+    } catch (err) {
+      logError('RootLayout.fcmOnMessage.setup', err);
+    }
+
+    // ── Deep link — récupération de mot de passe / confirmation d'email ────
+    // Les tokens de session arrivent dans le fragment de l'URL
+    // (youme://reset-password#access_token=...&type=recovery) : on les
+    // extrait et on établit la session nous-mêmes (voir setSessionFromUrl).
+    const handleDeepLink = async (url: string | null) => {
+      if (!url) return;
+      try {
+        const type = await authService.setSessionFromUrl(url);
+        if (type === 'recovery') {
+          setPasswordRecovery(true);
+          router.replace('/(auth)/reset-password');
+        }
+      } catch (err) {
+        logError('RootLayout.handleDeepLink', err);
+      }
+    };
+
+    Linking.getInitialURL().then(handleDeepLink);
+    const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+
+    // ── AppState — heartbeat de présence tant que l'app est au premier plan ─
+    // Complète onAuthStateChanged : ça garantit que `is_online` reste exact
+    // même si l'app repasse au premier plan sans nouvel événement d'auth.
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      const uid = currentUidRef.current;
+      if (nextState === 'active') {
+        if (uid) {
+          startPresenceHeartbeat();
+          userRepository
+            .updateOnlineStatus(uid, true)
+            .catch((err) => logError('RootLayout.appState.active', err));
+        }
+      } else {
+        stopPresenceHeartbeat();
+        if (uid) {
+          userRepository
+            .updateOnlineStatus(uid, false)
+            .catch((err) => logError('RootLayout.appState.background', err));
+        }
+      }
+    };
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      unsubscribe();
+      fcmUnsubscribe?.();
+      linkingSubscription.remove();
+      appStateSubscription.remove();
+      stopPresenceHeartbeat();
+      stealthUnsubscribeRef.current?.();
+      stealthUnsubscribeRef.current = null;
+    };
+  }, [
+    loadPersistedState,
+    setUser,
+    setInitialized,
+    setPasswordRecovery,
+    startPresenceHeartbeat,
+    stopPresenceHeartbeat,
+  ]);
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <PaperProvider theme={theme}>
+          <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+            <Stack screenOptions={{ headerShown: false }} />
+            <ThemedAlertHost />
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+          </View>
+        </PaperProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
+  );
+}
